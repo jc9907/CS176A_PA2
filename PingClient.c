@@ -61,39 +61,12 @@ char *toArray(int number)
   }
   return numberArray;
 }
-struct icmphdr
-{
-  u_int8_t type; /* message type */
-  u_int8_t code; /* type sub-code */
-  u_int16_t checksum;
-  union
-  {
-    struct
-    {
-      u_int16_t id;
-      u_int16_t sequence;
-    } echo;            /* echo datagram */
-    u_int32_t gateway; /* gateway address */
-    struct
-    {
-      u_int16_t __unused;
-      u_int16_t mtu;
-    } frag; /* path mtu discovery */
-  } un;
-};
-
-struct ping_pkt
-{
-  struct icmphdr hdr;
-  char msg[PING_PKT_S - sizeof(struct icmphdr)];
-};
 
 // make a ping request
 void send_ping(int ping_sockfd, struct sockaddr_in *ping_addr, char *rev_host)
 {
   int ttl_val = 64, msg_count = 0, i, addr_len, flag = 1, msg_received_count = 0;
 
-  struct ping_pkt pckt;
   char *message;
   struct sockaddr_in r_addr;
   struct timespec time_start, time_end, tfs, tfe;
@@ -106,18 +79,18 @@ void send_ping(int ping_sockfd, struct sockaddr_in *ping_addr, char *rev_host)
   clock_gettime(CLOCK_MONOTONIC, &time_message);
   char *t = sprintf("%lld.%.9ld", (long long)time_message.tv_sec, time_message.tv_nsec);
 
-  // set socket options at ip to TTL and value to 64,
-  // change to what you want by setting ttl_val
-  if (setsockopt(ping_sockfd, SOL_IP, IP_TTL, &ttl_val, sizeof(ttl_val)) != 0)
-  {
-    printf("\nSetting socket options to TTL failed!\n");
-    return;
-  }
+  // // set socket options at ip to TTL and value to 64,
+  // // change to what you want by setting ttl_val
+  // if (setsockopt(ping_sockfd, SOL_IP, IP_TTL, &ttl_val, sizeof(ttl_val)) != 0)
+  // {
+  //   printf("\nSetting socket options to TTL failed!\n");
+  //   return;
+  // }
 
-  else
-  {
-    printf("\nSocket set to TTL..\n");
-  }
+  // else
+  // {
+  //   printf("\nSocket set to TTL..\n");
+  // }
 
   // setting timeout of recv setting
   setsockopt(ping_sockfd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv_out, sizeof tv_out);
@@ -168,22 +141,14 @@ void send_ping(int ping_sockfd, struct sockaddr_in *ping_addr, char *rev_host)
       // if packet was not sent, don't receive
       if (flag)
       {
-        if (!(pckt.hdr.type == 69 && pckt.hdr.code == 0))
-        {
-          printf("Error..Packet received with ICMP type % d code % d\n ", pckt.hdr.type, pckt.hdr.code);
-        }
-        else
-        {
-          printf("%d bytes from %s msg_seq = % d ttl = % d rtt = % Lf ms.\n ", PING_PKT_S, rev_host, msg_count, ttl_val, rtt_msec);
+        printf("%d bytes from %s msg_seq = % d ttl = % d rtt = % Lf ms.\n ", PING_PKT_S, rev_host, msg_count, ttl_val, rtt_msec);
 
-          msg_received_count++;
-        }
+        msg_received_count++;
       }
     }
   }
   clock_gettime(CLOCK_MONOTONIC, &tfe);
-  double timeElapsed = ((double)(tfe.tv_nsec - tfs.tv_nsec)) /
-                       1000000.0;
+  double timeElapsed = ((double)(tfe.tv_nsec - tfs.tv_nsec)) / 1000000.0;
 
   total_msec = (tfe.tv_sec - tfs.tv_sec) * 1000.0 + timeElapsed;
 
