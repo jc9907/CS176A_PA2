@@ -6,7 +6,7 @@ from socket import *
 # Notice the use of SOCK_DGRAM for UDP packets
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 # Assign IP address and port number to socket
-serverSocket.bind(('', 12000))
+serverSocket.bind(('127.0.0.1', 12000))
 while True:
     rand = random.randint(0, 10)
 # Receive the client packet along with the address it is coming from
