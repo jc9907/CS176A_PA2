@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
+#include <math.h>
 #include <netinet/in.h>
 #define BUFSIZE 1024
 
@@ -49,6 +50,17 @@ void error(char *msg)
 // Define the Ping Loop
 int pingloop = 1;
 
+char *toArray(int number)
+{
+  int n = (int)log10(number) + 1;
+  int i;
+  char *numberArray = calloc(n, sizeof(char));
+  for (i = n - 1; i >= 0; --i, number /= 10)
+  {
+    numberArray[i] = (number % 10) + '0';
+  }
+  return numberArray;
+}
 struct icmphdr
 {
   u_int8_t type; /* message type */
@@ -82,14 +94,17 @@ void send_ping(int ping_sockfd, struct sockaddr_in *ping_addr, char *rev_host)
   int ttl_val = 64, msg_count = 0, i, addr_len, flag = 1, msg_received_count = 0;
 
   struct ping_pkt pckt;
+  char *message;
   struct sockaddr_in r_addr;
   struct timespec time_start, time_end, tfs, tfe;
+  struct timespec time_message;
+
   long double rtt_msec = 0, total_msec = 0;
   struct timeval tv_out;
   tv_out.tv_sec = RECV_TIMEOUT;
   tv_out.tv_usec = 0;
-
-  clock_gettime(CLOCK_MONOTONIC, &tfs);
+  clock_gettime(CLOCK_MONOTONIC, &time_message);
+  char *t = sprintf("%lld.%.9ld", (long long)time_message.tv_sec, time_message.tv_nsec);
 
   // set socket options at ip to TTL and value to 64,
   // change to what you want by setting ttl_val
@@ -114,22 +129,18 @@ void send_ping(int ping_sockfd, struct sockaddr_in *ping_addr, char *rev_host)
     flag = 1;
 
     //filling packet
-    bzero(&pckt, sizeof(pckt));
-
-    pckt.hdr.type = ICMP_ECHO;
-    pckt.hdr.un.echo.id = getpid();
-
-    for (i = 0; i < sizeof(pckt.msg) - 1; i++)
-      pckt.msg[i] = i + '0';
-
-    pckt.msg[i] = 0;
-    pckt.hdr.un.echo.sequence = msg_count++;
+    bzero(&message, sizeof(message));
+    clock_gettime(CLOCK_MONOTONIC, &time_start);
+    char s[80];
+    strcpy(s, "PING ");
+    strcat(s, toArray(msg_count));
+    strcat(s, t);
 
     usleep(PING_SLEEP_RATE);
 
     //send packet
     clock_gettime(CLOCK_MONOTONIC, &time_start);
-    if (sendto(ping_sockfd, &pckt, sizeof(pckt), 0,
+    if (sendto(ping_sockfd, &message, sizeof(message), 0,
                (struct sockaddr *)ping_addr,
                sizeof(*ping_addr)) <= 0)
     {
@@ -140,7 +151,7 @@ void send_ping(int ping_sockfd, struct sockaddr_in *ping_addr, char *rev_host)
     //receive packet
     addr_len = sizeof(r_addr);
 
-    if (recvfrom(ping_sockfd, &pckt, sizeof(pckt), 0,
+    if (recvfrom(ping_sockfd, &message, sizeof(message), 0,
                  (struct sockaddr *)&r_addr, &addr_len) <= 0 &&
         msg_count > 1)
     {
@@ -219,6 +230,12 @@ int main(int argc, char **argv)
         (char *)&serveraddr.sin_addr.s_addr, server->h_length);
   serveraddr.sin_port = htons(portno);
 
+  if (connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) < 0)
+    error("ERROR connecting");
+
+  for (int i = 0; i < 10; i++)
+  {
+  }
   // /* get a message from the user */
   // bzero(buf, BUFSIZE);
   // printf("Please enter msg: ");
